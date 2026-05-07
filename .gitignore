@@ -2,3 +2,6 @@
 .session_string
 *.log
 .env
+data/
+*.db
+*.sqlite
