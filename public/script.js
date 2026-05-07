@@ -381,5 +381,30 @@ window.onclick = (event) => {
   }
 };
 
+// About Modal
+const aboutModal = document.getElementById("aboutModal");
+const aboutBtn = document.getElementById("aboutBtn");
+const closeAbout = document.querySelector(".close-about");
+
+if (aboutBtn) {
+  aboutBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    aboutModal.style.display = "block";
+  });
+}
+
+if (closeAbout) {
+  closeAbout.addEventListener("click", () => {
+    aboutModal.style.display = "none";
+  });
+}
+
+// Close about modal when clicking outside
+window.addEventListener("click", (event) => {
+  if (event.target === aboutModal) {
+    aboutModal.style.display = "none";
+  }
+});
+
 // Load initial content
 loadContents();

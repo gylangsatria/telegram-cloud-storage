@@ -44,6 +44,32 @@
       <div class="content" id="content">
         <div class="loading">Loading...</div>
       </div>
+
+      <footer class="footer">
+        <div class="footer-content">
+          <div class="footer-info">
+            <span class="footer-version">
+              <i class="fas fa-code-branch"></i> Version 1.0.0
+            </span>
+            <span class="footer-separator">|</span>
+            <span class="footer-storage">
+              <i class="fab fa-telegram"></i> Telegram Cloud Storage
+            </span>
+          </div>
+          <div class="footer-links">
+            <a href="#" id="aboutBtn" class="footer-link">
+              <i class="fas fa-info-circle"></i> About
+            </a>
+            <a
+              href="https://github.com/gylangsatria/telegram-cloud-storage"
+              target="_blank"
+              class="footer-link"
+            >
+              <i class="fab fa-github"></i> GitHub
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
 
     <!-- New Folder Modal -->
@@ -53,6 +79,58 @@
         <h2>Create New Folder</h2>
         <input type="text" id="folderName" placeholder="Folder name" />
         <button id="createFolderBtn" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="aboutModal" class="modal">
+      <div class="modal-content">
+        <span class="close-about">&times;</span>
+        <div class="about-content">
+          <div class="about-icon">
+            <i
+              class="fab fa-telegram"
+              style="font-size: 48px; color: #0088cc"
+            ></i>
+          </div>
+          <h2>Telegram Cloud Storage</h2>
+          <p class="about-version">Version 1.0.0</p>
+          <p class="about-description">
+            Google Drive-like storage using Telegram as backend. Upload,
+            download, and manage your files directly from Telegram.
+          </p>
+          <div class="about-details">
+            <div class="about-item">
+              <i class="fas fa-check-circle"></i>
+              <span>Create folders</span>
+            </div>
+            <div class="about-item">
+              <i class="fas fa-check-circle"></i>
+              <span>Upload/download files</span>
+            </div>
+            <div class="about-item">
+              <i class="fas fa-check-circle"></i>
+              <span>Delete files/folders</span>
+            </div>
+            <div class="about-item">
+              <i class="fas fa-check-circle"></i>
+              <span>Grid & List views</span>
+            </div>
+            <div class="about-item">
+              <i class="fas fa-check-circle"></i>
+              <span>Docker support</span>
+            </div>
+          </div>
+          <div class="about-footer">
+            <p class="about-copyright">
+              <i class="far fa-copyright"></i> 2026 Telegram Cloud Storage
+            </p>
+            <p class="about-disclaimer">
+              <i class="fas fa-exclamation-triangle"></i>
+              Uses public Telegram channels - Do not store sensitive data
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
