@@ -18,13 +18,27 @@
       </header>
 
       <div class="toolbar">
-        <button id="newFolderBtn" class="btn btn-primary">
-          <i class="fas fa-folder-plus"></i> New Folder
-        </button>
-        <button id="uploadBtn" class="btn btn-success">
-          <i class="fas fa-upload"></i> Upload File
-        </button>
-        <input type="file" id="fileInput" style="display: none" multiple />
+        <div class="toolbar-left">
+          <button id="newFolderBtn" class="btn btn-primary">
+            <i class="fas fa-folder-plus"></i> New Folder
+          </button>
+          <button id="uploadBtn" class="btn btn-success">
+            <i class="fas fa-upload"></i> Upload File
+          </button>
+          <input type="file" id="fileInput" style="display: none" multiple />
+        </div>
+        <div class="toolbar-right">
+          <button
+            id="gridViewBtn"
+            class="btn btn-view active"
+            title="Grid View"
+          >
+            <i class="fas fa-th-large"></i>
+          </button>
+          <button id="listViewBtn" class="btn btn-view" title="List View">
+            <i class="fas fa-list"></i>
+          </button>
+        </div>
       </div>
 
       <div class="content" id="content">
