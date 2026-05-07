@@ -1,5 +1,5 @@
 let currentFolderId = null;
-let currentPath = "";
+let currentView = "grid"; // 'grid' or 'list'
 
 // Load folder contents
 async function loadContents(folderId = null) {
@@ -18,8 +18,17 @@ async function loadContents(folderId = null) {
   }
 }
 
-// Display folders and files
+// Display contents based on current view
 function displayContents(data) {
+  if (currentView === "grid") {
+    displayGrid(data);
+  } else {
+    displayList(data);
+  }
+}
+
+// Grid view display
+function displayGrid(data) {
   const contentDiv = document.getElementById("content");
 
   if (data.folders.length === 0 && data.files.length === 0) {
@@ -74,17 +83,92 @@ function displayContents(data) {
 
   html += "</div>";
   contentDiv.innerHTML = html;
+  attachEventListeners();
+}
 
-  // Add event listeners
-  document.querySelectorAll(".folder-card").forEach((card) => {
-    card.addEventListener("click", (e) => {
+// List view display
+function displayList(data) {
+  const contentDiv = document.getElementById("content");
+
+  if (data.folders.length === 0 && data.files.length === 0) {
+    contentDiv.innerHTML =
+      '<div class="empty"><i class="fas fa-folder-open"></i><p>This folder is empty</p></div>';
+    return;
+  }
+
+  let html = `
+        <div class="item-list">
+            <div class="list-header">
+                <div class="header-icon"></div>
+                <div class="header-name">Name</div>
+                <div class="header-info">Size / Type</div>
+                <div class="header-date">Date</div>
+                <div class="header-actions">Actions</div>
+            </div>
+    `;
+
+  // Display folders
+  data.folders.forEach((folder) => {
+    html += `
+            <div class="list-item folder-item" data-type="folder" data-id="${folder.id}">
+                <div class="item-icon">
+                    <i class="fas fa-folder" style="color: #0088cc;"></i>
+                </div>
+                <div class="item-name">${escapeHtml(folder.name)}</div>
+                <div class="item-info">Folder</div>
+                <div class="item-date">${new Date(folder.created_at).toLocaleDateString()}</div>
+                <div class="item-actions">
+                    <button class="action-btn delete-folder" data-id="${folder.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+  });
+
+  // Display files
+  data.files.forEach((file) => {
+    const size = formatFileSize(file.file_size);
+    const icon = getFileIcon(file.file_type);
+
+    html += `
+            <div class="list-item file-item" data-type="file" data-id="${file.id}">
+                <div class="item-icon">
+                    <i class="${icon}"></i>
+                </div>
+                <div class="item-name">${escapeHtml(file.name)}</div>
+                <div class="item-info">${size} • ${file.file_type || "Unknown"}</div>
+                <div class="item-date">${new Date(file.created_at).toLocaleDateString()}</div>
+                <div class="item-actions">
+                    <button class="action-btn download-file" data-id="${file.id}">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="action-btn delete-file" data-id="${file.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+  });
+
+  html += "</div>";
+  contentDiv.innerHTML = html;
+  attachEventListeners();
+}
+
+// Attach event listeners for both views
+function attachEventListeners() {
+  // Folder click (navigate)
+  document.querySelectorAll(".folder-card, .folder-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
       if (!e.target.closest(".delete-folder")) {
-        const folderId = card.dataset.id;
+        const folderId = item.dataset.id;
         loadContents(folderId);
       }
     });
   });
 
+  // Delete folder
   document.querySelectorAll(".delete-folder").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -95,6 +179,7 @@ function displayContents(data) {
     });
   });
 
+  // Delete file
   document.querySelectorAll(".delete-file").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -105,6 +190,7 @@ function displayContents(data) {
     });
   });
 
+  // Download file
   document.querySelectorAll(".download-file").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -124,26 +210,9 @@ async function updateBreadcrumb() {
     return;
   }
 
-  // Get folder path
-  const response = await fetch(`/api/browse?folderId=${currentFolderId}`);
-  const data = await response.json();
-
-  // Build breadcrumb (simplified version)
+  // Simplified breadcrumb
   breadcrumbDiv.innerHTML =
-    '<a href="#" onclick="loadContents(null)">My Drive</a>';
-
-  // You can implement full path tracking by storing path when creating folders
-  const folder = data.folders.find((f) => f.id == currentFolderId);
-  if (folder) {
-    const parts = folder.path.split("/").filter((p) => p);
-    let currentPath = "";
-    for (const part of parts) {
-      // This is simplified - you'd need to get folder IDs for each part
-      breadcrumbDiv.innerHTML += ` / ${escapeHtml(part)}`;
-    }
-  } else {
-    breadcrumbDiv.innerHTML += ` / ...`;
-  }
+    '<a href="#" onclick="loadContents(null)">My Drive</a> / ...';
 }
 
 // Create new folder
@@ -254,6 +323,21 @@ async function deleteFile(fileId) {
   }
 }
 
+// View toggle
+document.getElementById("gridViewBtn").addEventListener("click", () => {
+  currentView = "grid";
+  document.getElementById("gridViewBtn").classList.add("active");
+  document.getElementById("listViewBtn").classList.remove("active");
+  loadContents(currentFolderId);
+});
+
+document.getElementById("listViewBtn").addEventListener("click", () => {
+  currentView = "list";
+  document.getElementById("listViewBtn").classList.add("active");
+  document.getElementById("gridViewBtn").classList.remove("active");
+  loadContents(currentFolderId);
+});
+
 // Utility functions
 function formatFileSize(bytes) {
   if (!bytes) return "0 B";
@@ -285,7 +369,7 @@ function showError(message) {
   contentDiv.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i><p>${message}</p></div>`;
 }
 
-// Close modal when clicking X or outside
+// Close modal
 document.querySelector(".close").addEventListener("click", () => {
   document.getElementById("folderModal").style.display = "none";
 });
