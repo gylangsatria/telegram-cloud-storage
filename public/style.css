@@ -486,3 +486,174 @@ header h1 {
     display: none;
   }
 }
+
+/* Footer Styles */
+.footer {
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  padding: 15px 20px;
+  margin-top: 20px;
+  border-radius: 8px;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 13px;
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+}
+
+.footer-version {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-version i {
+  color: #0088cc;
+}
+
+.footer-separator {
+  color: #ddd;
+}
+
+.footer-storage {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-storage i {
+  color: #0088cc;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-link {
+  color: #666;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.3s;
+}
+
+.footer-link:hover {
+  color: #0088cc;
+}
+
+/* About Modal Styles */
+.about-content {
+  text-align: center;
+  padding: 10px;
+}
+
+.about-icon {
+  margin-bottom: 15px;
+}
+
+.about-content h2 {
+  color: #333;
+  margin-bottom: 5px;
+  font-size: 24px;
+}
+
+.about-version {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.about-description {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 25px;
+  font-size: 14px;
+}
+
+.about-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 25px;
+  text-align: left;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.about-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #555;
+}
+
+.about-item i {
+  color: #28a745;
+  font-size: 14px;
+}
+
+.about-footer {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 20px;
+}
+
+.about-copyright {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+.about-disclaimer {
+  font-size: 12px;
+  color: #dc3545;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.about-disclaimer i {
+  font-size: 12px;
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footer-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-separator {
+    display: none;
+  }
+
+  .footer-links {
+    gap: 15px;
+  }
+
+  .about-details {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
