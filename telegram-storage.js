@@ -1,17 +1,6 @@
 const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
-const readline = require("readline");
 const fs = require("fs");
-const path = require("path");
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-function question(query) {
-  return new Promise((resolve) => rl.question(query, resolve));
-}
 
 class TelegramStorage {
   constructor(apiId, apiHash, sessionString, channelUsername) {
@@ -32,67 +21,30 @@ class TelegramStorage {
     console.log("Starting Telegram client...");
 
     await this.client.start({
-      phoneNumber: async () => {
-        console.log("\n[Telegram Login Required]");
-        return await question(
-          "Please enter your phone number (e.g., +628123456789): ",
-        );
-      },
-      phoneCode: async () => {
-        console.log("\n[Verification code sent to Telegram]");
-        return await question("Enter verification code: ");
-      },
-      password: async () => {
-        console.log("\n[Two-factor authentication enabled]");
-        return await question("Enter your password: ");
-      },
-      onError: (err) => {
-        console.error("Login error:", err);
-        return;
-      },
+      phoneNumber: async () => "",
+      phoneCode: async () => "",
+      password: async () => "",
     });
 
     console.log("Login successful!");
 
-    // Get or create channel
     try {
       this.channel = await this.client.getInputEntity(this.channelUsername);
       console.log("Using channel: " + this.channelUsername);
     } catch (error) {
       console.log("Creating new channel: " + this.channelUsername);
-      try {
-        const result = await this.client.invoke({
-          _: "createChannel",
-          title: "Cloud Storage",
-          about: "Telegram Cloud Storage for files",
-          broadcast: true,
-          megagroup: false,
-        });
-        this.channel = result.chats[0];
-        console.log("Channel created successfully!");
-      } catch (createError) {
-        console.error("Failed to create channel:", createError);
-        throw createError;
-      }
+      const result = await this.client.invoke({
+        _: "createChannel",
+        title: "Cloud Storage",
+        about: "Telegram Cloud Storage for files",
+        broadcast: true,
+        megagroup: false,
+      });
+      this.channel = result.chats[0];
+      console.log("Channel created successfully!");
     }
 
-    // Save session string for future use
-    const sessionString = this.client.session.save();
-    if (sessionString && sessionString !== this.sessionString) {
-      console.log("\n=========================================");
-      console.log("SAVE THIS SESSION STRING:");
-      console.log(sessionString);
-      console.log("=========================================");
-      console.log("Add to .env file:");
-      console.log('TELEGRAM_SESSION="' + sessionString + '"');
-      console.log("=========================================\n");
-
-      // Save to file for persistence
-      fs.writeFileSync("/app/.session_string", sessionString);
-    }
-
-    console.log("Telegram storage ready!\n");
-    rl.close();
+    console.log("Telegram storage ready!");
     return this;
   }
 
@@ -153,10 +105,6 @@ class TelegramStorage {
       console.error("Download error:", error);
       throw error;
     }
-  }
-
-  getSessionString() {
-    return this.client ? this.client.session.save() : "";
   }
 }
 
