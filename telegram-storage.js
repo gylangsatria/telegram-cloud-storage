@@ -76,11 +76,14 @@ class TelegramStorage {
 
   async deleteFile(telegramFileId) {
     try {
-      await this.client.invoke({
-        _: "deleteMessages",
-        id: [telegramFileId],
-        revoke: true,
-      });
+      const { Api } = require("telegram");
+
+      await this.client.invoke(
+        new Api.messages.DeleteMessages({
+          id: [telegramFileId],
+          revoke: true,
+        }),
+      );
       return true;
     } catch (error) {
       console.error("Delete error:", error);
