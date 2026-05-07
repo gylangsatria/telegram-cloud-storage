@@ -42,32 +42,38 @@ async function getSession() {
 
   console.log("\nConnecting to Telegram...");
 
-  await client.start({
-    phoneNumber: async () => phoneNumber,
-    phoneCode: async () => {
-      const code = await question("Enter verification code from Telegram: ");
-      return code;
-    },
-    password: async () => {
-      const pwd = await question("Enter your 2FA password (if any): ");
-      return pwd;
-    },
-  });
+  try {
+    await client.start({
+      phoneNumber: async () => phoneNumber,
+      phoneCode: async () => {
+        const code = await question("Enter verification code from Telegram: ");
+        return code;
+      },
+      password: async () => {
+        const pwd = await question("Enter your 2FA password (if any): ");
+        return pwd;
+      },
+    });
 
-  console.log("\nLogin successful!");
+    console.log("\nLogin successful!");
 
-  const sessionString = client.session.save();
+    const sessionString = client.session.save();
 
-  console.log("\n=========================================");
-  console.log("COPY THIS SESSION STRING:");
-  console.log(sessionString);
-  console.log("=========================================\n");
+    console.log("\n=========================================");
+    console.log("COPY THIS SESSION STRING:");
+    console.log(sessionString);
+    console.log("=========================================\n");
 
-  await client.disconnect();
-  rl.close();
+    await client.disconnect();
+    rl.close();
 
-  console.log("Add this line to your .env file:");
-  console.log('TELEGRAM_SESSION="' + sessionString + '"');
+    console.log("Add this line to your .env file:");
+    console.log('TELEGRAM_SESSION="' + sessionString + '"');
+  } catch (error) {
+    console.error("\nLogin failed:", error.message);
+    rl.close();
+    process.exit(1);
+  }
 }
 
-getSession().catch(console.error);
+getSession();
