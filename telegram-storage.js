@@ -113,15 +113,47 @@ class TelegramStorage {
 
   async deleteFile(telegramFileId) {
     try {
-      const { Api } = require("telegram");
+      const messageId = parseInt(telegramFileId);
+      console.log("Attempting to delete message ID:", messageId);
 
-      await this.client.invoke(
+      // Method 1: Delete by message ID
+      const result = await this.client.invoke(
         new Api.messages.DeleteMessages({
-          id: [telegramFileId],
+          id: [messageId],
           revoke: true,
         }),
       );
-      console.log("File deleted successfully:", telegramFileId);
+
+      console.log("Delete result:", result);
+
+      // Method 2: Juga coba hapus dari channel (sebagai backup)
+      try {
+        const result2 = await this.client.invoke(
+          new Api.channels.DeleteMessages({
+            channel: this.channel,
+            id: [messageId],
+          }),
+        );
+        console.log("Channel delete result:", result2);
+      } catch (e) {
+        console.log("Channel delete method skipped:", e.message);
+      }
+
+      // Method 3: Coba dengan deleteHistory (menghapus semua pesan dengan ID tersebut)
+      try {
+        const result3 = await this.client.invoke({
+          _: "messages.deleteHistory",
+          peer: this.channel,
+          max_id: messageId,
+          just_clear: false,
+          revoke: true,
+        });
+        console.log("Delete history result:", result3);
+      } catch (e) {
+        console.log("Delete history method skipped:", e.message);
+      }
+
+      console.log("Delete operations completed for ID:", messageId);
       return true;
     } catch (error) {
       console.error("Delete error:", error);
