@@ -13,6 +13,9 @@ Google Drive-like storage using Telegram as backend. Now supports **PUBLIC** and
 
 - Create/delete folders
 - Upload/download files
+- Batch delete multiple items
+- Grid & List view toggle
+- Multi-user authentication (Admin/User roles)
 - File management UI like Google Drive
 - Docker support
 - Session persistence
@@ -66,28 +69,36 @@ http://localhost:3010
 
 ## Environment Variables
 
-| Variable            | Description                   | Required           |
-| ------------------- | ----------------------------- | ------------------ |
-| `TELEGRAM_API_ID`   | API ID from my.telegram.org   | Yes                |
-| `TELEGRAM_API_HASH` | API Hash from my.telegram.org | Yes                |
-| `TELEGRAM_SESSION`  | Session string (generated)    | Yes                |
-| `STORAGE_CHANNEL`   | Telegram channel username     | Yes                |
-| `PORT`              | Web server port               | No (default: 3010) |
+| Variable             | Description                        | Required            |
+| -------------------- | ---------------------------------- | ------------------- |
+| `TELEGRAM_API_ID`    | API ID from my.telegram.org        | Yes                 |
+| `TELEGRAM_API_HASH`  | API Hash from my.telegram.org      | Yes                 |
+| `TELEGRAM_SESSION`   | Session string (generated)         | Yes                 |
+| `STORAGE_CHANNEL`    | Telegram channel username (public) | For public channel  |
+| `STORAGE_CHANNEL_ID` | Telegram channel ID (private)      | For private channel |
+| `PORT`               | Web server port                    | No (default: 3010)  |
 
 ## Security
 
-### Current Limitations (Public Channel)
+### Public Channel Limitations
 
 - Channel is **PUBLIC** - anyone with the username can find and join
 - Files are **NOT** end-to-end encrypted
 - Telegram can access your files (server-side encryption only)
 - Channel appears in Telegram search results
 
-### Recommendations for Current Setup
+### Private Channel Benefits
+
+- Channel is **PRIVATE** - not discoverable in search
+- Access only via invite link
+- Better privacy for your files
+
+### Recommendations
 
 - **DO NOT** store sensitive documents (passports, financial data, passwords)
 - Use for personal backups and non-sensitive files only
-- Consider changing to private channel (see TODO below)
+- Use **PRIVATE channel** for better security
+- **Change default admin password** after first login
 
 ## TODO: Private Channel Support
 
@@ -95,8 +106,8 @@ Planned improvements for better security:
 
 ### Short Term
 
-- [ ] Add support for private channels
-- [ ] Store channel ID instead of username
+- [Done] Add support for private channels
+- [Done] Store channel ID instead of username
 - [ ] Auto-create private channel option
 - [ ] Invite link management
 
@@ -118,17 +129,19 @@ Planned improvements for better security:
 
 ```bash
 telegram-cloud-storage/
-├── server.js              # Express server
+├── server.js              # Express server with auth
 ├── telegram-storage.js    # Telegram API integration
-├── database.js            # SQLite metadata storage
+├── database.js            # SQLite metadata + users
 ├── get-session.js         # Session generator
 ├── Dockerfile             # Main app image
 ├── Dockerfile.session     # Session generator image
 ├── docker-compose.yml     # Docker composition
 ├── public/                # Frontend files
-│   ├── index.html
-│   ├── style.css
-│   └── script.js
+│   ├── index.html         # Main dashboard
+│   ├── login.html         # Login page
+│   ├── admin.html         # Admin panel
+│   ├── style.css          # Styles
+│   └── script.js          # Frontend logic
 └── data/                  # SQLite database
 ```
 
