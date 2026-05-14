@@ -10,6 +10,40 @@ const TelegramStorage = require("./telegram-storage");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const bcrypt = require("bcrypt");
+const session = require("express-session");
+
+// Session configuration (update yang sudah ada)
+app.use(
+  session({
+    secret: "telegram-cloud-secret-key-change-this",
+    resave: false,
+    saveUninitialized: false, // Change to false
+    cookie: {
+      secure: false, // Set true if using HTTPS
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }),
+);
+
+// Middleware to check if user is logged in
+function requireLogin(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Please login first" });
+  }
+  next();
+}
+
+// Middleware to check if user is admin
+function requireAdmin(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Please login first" });
+  }
+  if (req.session.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
 
 // Middleware
 app.use(express.json());
@@ -65,31 +99,169 @@ async function initTelegram() {
 
 // API Routes
 
-// Get folder contents
-app.get("/api/browse", async (req, res) => {
-  const folderId = req.query.folderId || null;
+// ============ AUTHENTICATION ROUTES ============
 
+// Login
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+
+  db.get(
+    "SELECT * FROM users WHERE username = ?",
+    [username],
+    async (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.role = user.role;
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+        },
+      });
+    },
+  );
+});
+
+// Logout
+app.post("/api/logout", (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+// Get current user
+app.get("/api/me", (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Not logged in" });
+  }
+
+  res.json({
+    id: req.session.userId,
+    username: req.session.username,
+    role: req.session.role,
+  });
+});
+
+// Admin: Get all users
+app.get("/api/users", requireAdmin, (req, res) => {
+  db.all(
+    "SELECT id, username, role, created_at FROM users ORDER BY id",
+    [],
+    (err, users) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(users);
+    },
+  );
+});
+
+// Admin: Create new user
+app.post("/api/users", requireAdmin, async (req, res) => {
+  const { username, password, role } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const userRole = role === "admin" ? "admin" : "user";
+
+  db.run(
+    "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+    [username, hashedPassword, userRole],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE")) {
+          return res.status(400).json({ error: "Username already exists" });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+
+      // Create root folder for new user
+      const rootPath = "/" + username;
+      db.run(
+        "INSERT INTO folders (name, parent_id, path, user_id) VALUES (?, NULL, ?, ?)",
+        [username + "-root", rootPath, this.lastID],
+        (err2) => {
+          if (err2) console.error("Error creating root folder:", err2);
+        },
+      );
+
+      res.json({ id: this.lastID, username, role: userRole });
+    },
+  );
+});
+
+// Admin: Delete user
+app.delete("/api/users/:id", requireAdmin, (req, res) => {
+  const userId = req.params.id;
+
+  // Don't allow deleting self
+  if (userId == req.session.userId) {
+    return res.status(400).json({ error: "Cannot delete your own account" });
+  }
+
+  // Delete user's folders and files first
+  db.run("DELETE FROM files WHERE user_id = ?", [userId], (err) => {
+    if (err) console.error("Error deleting files:", err);
+  });
+
+  db.run("DELETE FROM folders WHERE user_id = ?", [userId], (err) => {
+    if (err) console.error("Error deleting folders:", err);
+  });
+
+  db.run("DELETE FROM users WHERE id = ?", [userId], (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get folder contents
+app.get("/api/browse", requireLogin, (req, res) => {
+  const folderId = req.query.folderId || null;
+  const userId = req.session.userId;
+
+  // Get folders for this user only
   db.all(
     `
-        SELECT id, name, parent_id, path, created_at 
-        FROM folders 
-        WHERE parent_id ${folderId ? "= ?" : "IS NULL"}
-        ORDER BY name
+    SELECT id, name, parent_id, path, created_at 
+    FROM folders 
+    WHERE user_id = ? AND parent_id ${folderId ? "= ?" : "IS NULL"}
+    ORDER BY name
     `,
-    folderId ? [folderId] : [],
+    folderId ? [userId, folderId] : [userId],
     (err, folders) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
 
+      // Get files for this user only
       db.all(
         `
-            SELECT id, name, folder_id, file_size, file_type, created_at, telegram_file_id
-            FROM files 
-            WHERE folder_id ${folderId ? "= ?" : "IS NULL"}
-            ORDER BY name
+        SELECT id, name, folder_id, file_size, file_type, created_at, telegram_file_id
+        FROM files 
+        WHERE user_id = ? AND folder_id ${folderId ? "= ?" : "IS NULL"}
+        ORDER BY name
         `,
-        folderId ? [folderId] : [],
+        folderId ? [userId, folderId] : [userId],
         (err, files) => {
           if (err) {
             return res.status(500).json({ error: err.message });
@@ -126,8 +298,8 @@ app.post("/api/folders", async (req, res) => {
 
   function createFolder() {
     db.run(
-      "INSERT INTO folders (name, parent_id, path) VALUES (?, ?, ?)",
-      [name, parentId || null, parentPath],
+      "INSERT INTO folders (name, parent_id, path, user_id) VALUES (?, ?, ?, ?)",
+      [name, parentId || null, parentPath, userId],
       function (err) {
         if (err) {
           return res.status(500).json({ error: err.message });
@@ -180,14 +352,15 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
     // Save to database
     db.run(
-      `INSERT INTO files (name, folder_id, telegram_file_id, file_size, file_type) 
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO files (name, folder_id, telegram_file_id, file_size, file_type, user_id) 
+     VALUES (?, ?, ?, ?, ?, ?)`,
       [
         file.originalname,
         folderId || null,
         telegramFile.id,
         file.size,
         file.mimetype,
+        userId,
       ],
       function (err) {
         if (err) {

@@ -12,6 +12,55 @@ if (!fs.existsSync(path.join(__dirname, "data"))) {
 const db = new sqlite3.Database(dbPath);
 
 // Initialize database tables
+
+// Add users table
+db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+// Add user_id to folders table
+db.run(
+  `
+    ALTER TABLE folders ADD COLUMN user_id INTEGER DEFAULT 1
+`,
+  (err) => {
+    if (err && !err.message.includes("duplicate column")) {
+      console.log("Note: user_id column may already exist");
+    }
+  },
+);
+
+// Add user_id to files table
+db.run(
+  `
+    ALTER TABLE files ADD COLUMN user_id INTEGER DEFAULT 1
+`,
+  (err) => {
+    if (err && !err.message.includes("duplicate column")) {
+      console.log("Note: user_id column may already exist");
+    }
+  },
+);
+
+// Create default admin user (password: admin123)
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const defaultAdminPassword = bcrypt.hashSync("admin123", saltRounds);
+
+db.run(
+  `
+    INSERT OR IGNORE INTO users (username, password, role) 
+    VALUES ('admin', ?, 'admin')
+`,
+  [defaultAdminPassword],
+);
+
 db.serialize(() => {
   // Folders table
   db.run(`
