@@ -29,6 +29,16 @@
 
       <div class="toolbar">
         <div class="toolbar-left">
+          <button
+            id="batchDeleteBtn"
+            class="btn btn-danger"
+            style="display: none"
+          >
+            <i class="fas fa-trash-alt"></i> Delete Selected (<span
+              id="selectedCount"
+              >0</span
+            >)
+          </button>
           <button id="newFolderBtn" class="btn btn-primary">
             <i class="fas fa-folder-plus"></i> New Folder
           </button>
@@ -38,6 +48,16 @@
           <input type="file" id="fileInput" style="display: none" multiple />
         </div>
         <div class="toolbar-right">
+          <button id="selectAllBtn" class="btn btn-view" title="Select All">
+            <i class="fas fa-check-square"></i>
+          </button>
+          <button
+            id="clearSelectionBtn"
+            class="btn btn-view"
+            title="Clear Selection"
+          >
+            <i class="fas fa-square"></i>
+          </button>
           <button
             id="gridViewBtn"
             class="btn btn-view active"
