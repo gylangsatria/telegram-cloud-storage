@@ -1,10 +1,13 @@
 # Telegram Cloud Storage
 
-Google Drive-like storage using Telegram as backend. Currently using public channel with plan to support private channel.
+Google Drive-like storage using Telegram as backend. Now supports **PUBLIC** and **PRIVATE** channels.
 
 ## Current Status
 
-⚠️ **Currently using PUBLIC Telegram channel** - Your files can be discovered if someone knows the channel username. See [Security](#security) section for details.
+✅ **Now supports PRIVATE channels** - Your files are more secure! Choose between:
+
+- **Public channel**: Easy setup with username, but discoverable
+- **Private channel**: Hidden from search, access only via invite link (RECOMMENDED)
 
 ✅ Working features:
 
@@ -13,6 +16,7 @@ Google Drive-like storage using Telegram as backend. Currently using public chan
 - File management UI like Google Drive
 - Docker support
 - Session persistence
+- **Public & Private channel support** (NEW)
 
 ## Quick Start
 
@@ -176,7 +180,3 @@ ports:
 ## License
 
 MIT
-
-## Disclaimer
-
-⚠️ **IMPORTANT**: This software uses public Telegram channels for storage. Do not upload sensitive or confidential data. Use at your own risk.
