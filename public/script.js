@@ -1,6 +1,56 @@
 let currentFolderId = null;
 let currentView = "grid"; // 'grid' or 'list'
 
+// Check authentication
+async function checkAuth() {
+  try {
+    const response = await fetch("/api/me");
+    if (!response.ok) {
+      window.location.href = "/login";
+      return false;
+    }
+    const user = await response.json();
+
+    // Add admin link if admin
+    if (user.role === "admin") {
+      const toolbar = document.querySelector(".toolbar-left");
+      const adminBtn = document.createElement("button");
+      adminBtn.id = "adminBtn";
+      adminBtn.className = "btn";
+      adminBtn.style.background = "#6c757d";
+      adminBtn.innerHTML = '<i class="fas fa-user-shield"></i> Admin Panel';
+      adminBtn.onclick = () => (window.location.href = "/admin.html");
+      toolbar.appendChild(adminBtn);
+    }
+
+    // Add user info to header
+    const header = document.querySelector("header h1");
+    const userInfo = document.createElement("div");
+    userInfo.style.fontSize = "14px";
+    userInfo.style.marginTop = "10px";
+    userInfo.innerHTML = `<i class="fas fa-user"></i> ${user.username} (${user.role}) | <a href="#" id="logoutLink" style="color: white;">Logout</a>`;
+    header.parentElement.appendChild(userInfo);
+
+    document
+      .getElementById("logoutLink")
+      ?.addEventListener("click", async (e) => {
+        e.preventDefault();
+        await fetch("/api/logout", { method: "POST" });
+        window.location.href = "/login";
+      });
+
+    return user;
+  } catch (error) {
+    window.location.href = "/login";
+    return false;
+  }
+}
+
+// Call at start
+checkAuth().then(() => {
+  loadContents();
+});
+
 // Load folder contents
 async function loadContents(folderId = null) {
   currentFolderId = folderId;

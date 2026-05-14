@@ -3,6 +3,7 @@ const session = require("express-session");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 
 const db = require("./database");
@@ -10,21 +11,29 @@ const TelegramStorage = require("./telegram-storage");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const bcrypt = require("bcrypt");
-const session = require("express-session");
 
-// Session configuration (update yang sudah ada)
+// Middleware
+app.use(express.json());
+app.use(express.static("public"));
+
+// Session configuration - HANYA SATU
 app.use(
   session({
     secret: "telegram-cloud-secret-key-change-this",
     resave: false,
-    saveUninitialized: false, // Change to false
+    saveUninitialized: false,
     cookie: {
-      secure: false, // Set true if using HTTPS
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
     },
   }),
 );
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 // Middleware to check if user is logged in
 function requireLogin(req, res, next) {
@@ -45,21 +54,17 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Middleware
-app.use(express.json());
-app.use(express.static("public"));
-app.use(
-  session({
-    secret: "telegram-cloud-secret-key",
-    resave: false,
-    saveUninitialized: true,
-  }),
-);
+// Serve login page
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
 
-// Configure multer for file uploads
-const upload = multer({
-  dest: "uploads/",
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+// Redirect root to login if not authenticated
+app.get("/", (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect("/login");
+  }
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Initialize Telegram storage
@@ -67,7 +72,6 @@ let telegramStorage = null;
 
 async function initTelegram() {
   if (!telegramStorage) {
-    // Gunakan channel ID jika ada, fallback ke username
     const channelIdentifier =
       process.env.STORAGE_CHANNEL_ID || process.env.STORAGE_CHANNEL;
 
@@ -96,8 +100,6 @@ async function initTelegram() {
   }
   return telegramStorage;
 }
-
-// API Routes
 
 // ============ AUTHENTICATION ROUTES ============
 
@@ -193,7 +195,6 @@ app.post("/api/users", requireAdmin, async (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      // Create root folder for new user
       const rootPath = "/" + username;
       db.run(
         "INSERT INTO folders (name, parent_id, path, user_id) VALUES (?, NULL, ?, ?)",
@@ -212,12 +213,10 @@ app.post("/api/users", requireAdmin, async (req, res) => {
 app.delete("/api/users/:id", requireAdmin, (req, res) => {
   const userId = req.params.id;
 
-  // Don't allow deleting self
   if (userId == req.session.userId) {
     return res.status(400).json({ error: "Cannot delete your own account" });
   }
 
-  // Delete user's folders and files first
   db.run("DELETE FROM files WHERE user_id = ?", [userId], (err) => {
     if (err) console.error("Error deleting files:", err);
   });
@@ -234,12 +233,13 @@ app.delete("/api/users/:id", requireAdmin, (req, res) => {
   });
 });
 
+// ============ STORAGE ROUTES ============
+
 // Get folder contents
 app.get("/api/browse", requireLogin, (req, res) => {
   const folderId = req.query.folderId || null;
   const userId = req.session.userId;
 
-  // Get folders for this user only
   db.all(
     `
     SELECT id, name, parent_id, path, created_at 
@@ -253,7 +253,6 @@ app.get("/api/browse", requireLogin, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      // Get files for this user only
       db.all(
         `
         SELECT id, name, folder_id, file_size, file_type, created_at, telegram_file_id
@@ -274,23 +273,28 @@ app.get("/api/browse", requireLogin, (req, res) => {
 });
 
 // Create folder
-app.post("/api/folders", async (req, res) => {
+app.post("/api/folders", requireLogin, (req, res) => {
   const { name, parentId } = req.body;
+  const userId = req.session.userId;
 
   if (!name) {
     return res.status(400).json({ error: "Folder name required" });
   }
 
-  // Get parent path
   let parentPath = "";
+
   if (parentId) {
-    db.get("SELECT path FROM folders WHERE id = ?", [parentId], (err, row) => {
-      if (err || !row) {
-        return res.status(500).json({ error: "Parent folder not found" });
-      }
-      parentPath = row.path + "/" + name;
-      createFolder();
-    });
+    db.get(
+      "SELECT path FROM folders WHERE id = ? AND user_id = ?",
+      [parentId, userId],
+      (err, row) => {
+        if (err || !row) {
+          return res.status(500).json({ error: "Parent folder not found" });
+        }
+        parentPath = row.path + "/" + name;
+        createFolder();
+      },
+    );
   } else {
     parentPath = "/" + name;
     createFolder();
@@ -316,83 +320,85 @@ app.post("/api/folders", async (req, res) => {
 });
 
 // Upload file
-app.post("/api/upload", upload.single("file"), async (req, res) => {
-  try {
-    const { folderId } = req.body;
-    const file = req.file;
+app.post(
+  "/api/upload",
+  requireLogin,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const { folderId } = req.body;
+      const file = req.file;
+      const userId = req.session.userId;
 
-    if (!file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
 
-    await initTelegram();
+      await initTelegram();
 
-    // Get folder path for caption
-    let folderPath = "/";
-    if (folderId) {
-      await new Promise((resolve, reject) => {
-        db.get(
-          "SELECT path FROM folders WHERE id = ?",
-          [folderId],
-          (err, row) => {
-            if (err) reject(err);
-            if (row) folderPath = row.path;
-            resolve();
-          },
-        );
-      });
-    }
-
-    // Upload to Telegram with folder path
-    const telegramFile = await telegramStorage.uploadFile(
-      file.path,
-      file.originalname,
-      folderPath, // Parameter folderPath
-    );
-
-    // Save to database
-    db.run(
-      `INSERT INTO files (name, folder_id, telegram_file_id, file_size, file_type, user_id) 
-     VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        file.originalname,
-        folderId || null,
-        telegramFile.id,
-        file.size,
-        file.mimetype,
-        userId,
-      ],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({
-          id: this.lastID,
-          name: file.originalname,
-          folder_id: folderId,
-          size: file.size,
+      let folderPath = "/";
+      if (folderId) {
+        await new Promise((resolve, reject) => {
+          db.get(
+            "SELECT path FROM folders WHERE id = ? AND user_id = ?",
+            [folderId, userId],
+            (err, row) => {
+              if (err) reject(err);
+              if (row) folderPath = row.path;
+              resolve();
+            },
+          );
         });
-      },
-    );
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({ error: error.message });
-    // Clean up temp file
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      }
+
+      const telegramFile = await telegramStorage.uploadFile(
+        file.path,
+        file.originalname,
+        folderPath,
+      );
+
+      db.run(
+        `INSERT INTO files (name, folder_id, telegram_file_id, file_size, file_type, user_id) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          file.originalname,
+          folderId || null,
+          telegramFile.id,
+          file.size,
+          file.mimetype,
+          userId,
+        ],
+        function (err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({
+            id: this.lastID,
+            name: file.originalname,
+            folder_id: folderId,
+            size: file.size,
+          });
+        },
+      );
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: error.message });
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
     }
-  }
-});
+  },
+);
 
 // Delete file
-app.delete("/api/files/:id", async (req, res) => {
+app.delete("/api/files/:id", requireLogin, async (req, res) => {
   try {
     const fileId = req.params.id;
+    const userId = req.session.userId;
 
-    // Get telegram file ID from database
     db.get(
-      "SELECT telegram_file_id FROM files WHERE id = ?",
-      [fileId],
+      "SELECT telegram_file_id FROM files WHERE id = ? AND user_id = ?",
+      [fileId, userId],
       async (err, file) => {
         if (err || !file) {
           return res.status(404).json({ error: "File not found" });
@@ -401,13 +407,16 @@ app.delete("/api/files/:id", async (req, res) => {
         await initTelegram();
         await telegramStorage.deleteFile(parseInt(file.telegram_file_id));
 
-        // Delete from database
-        db.run("DELETE FROM files WHERE id = ?", [fileId], (err) => {
-          if (err) {
-            return res.status(500).json({ error: err.message });
-          }
-          res.json({ success: true });
-        });
+        db.run(
+          "DELETE FROM files WHERE id = ? AND user_id = ?",
+          [fileId, userId],
+          (err) => {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true });
+          },
+        );
       },
     );
   } catch (error) {
@@ -417,22 +426,23 @@ app.delete("/api/files/:id", async (req, res) => {
 });
 
 // Delete folder
-app.delete("/api/folders/:id", async (req, res) => {
+app.delete("/api/folders/:id", requireLogin, async (req, res) => {
   const folderId = req.params.id;
+  const userId = req.session.userId;
 
-  // First, get all files in this folder and subfolders
   db.all(
     `
-        WITH RECURSIVE folder_tree AS (
-            SELECT id FROM folders WHERE id = ?
-            UNION ALL
-            SELECT f.id FROM folders f
-            INNER JOIN folder_tree ft ON f.parent_id = ft.id
-        )
-        SELECT f.telegram_file_id FROM files f
-        WHERE f.folder_id IN (SELECT id FROM folder_tree)
+    WITH RECURSIVE folder_tree AS (
+        SELECT id FROM folders WHERE id = ? AND user_id = ?
+        UNION ALL
+        SELECT f.id FROM folders f
+        INNER JOIN folder_tree ft ON f.parent_id = ft.id
+        WHERE f.user_id = ?
+    )
+    SELECT f.telegram_file_id FROM files f
+    WHERE f.folder_id IN (SELECT id FROM folder_tree) AND f.user_id = ?
     `,
-    [folderId],
+    [folderId, userId, userId, userId],
     async (err, files) => {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -440,30 +450,33 @@ app.delete("/api/folders/:id", async (req, res) => {
 
       await initTelegram();
 
-      // Delete all files from Telegram
       for (const file of files) {
         await telegramStorage.deleteFile(parseInt(file.telegram_file_id));
       }
 
-      // Delete folder and its contents from database
-      db.run("DELETE FROM folders WHERE id = ?", [folderId], (err) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ success: true });
-      });
+      db.run(
+        "DELETE FROM folders WHERE id = ? AND user_id = ?",
+        [folderId, userId],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ success: true });
+        },
+      );
     },
   );
 });
 
 // Download file
-app.get("/api/download/:id", async (req, res) => {
+app.get("/api/download/:id", requireLogin, async (req, res) => {
   try {
     const fileId = req.params.id;
+    const userId = req.session.userId;
 
     db.get(
-      "SELECT name, telegram_file_id, file_type FROM files WHERE id = ?",
-      [fileId],
+      "SELECT name, telegram_file_id, file_type FROM files WHERE id = ? AND user_id = ?",
+      [fileId, userId],
       async (err, file) => {
         if (err || !file) {
           return res.status(404).json({ error: "File not found" });
@@ -482,7 +495,6 @@ app.get("/api/download/:id", async (req, res) => {
         );
 
         res.download(tempPath, file.name, (err) => {
-          // Clean up temp file after download
           if (fs.existsSync(tempPath)) {
             fs.unlinkSync(tempPath);
           }
