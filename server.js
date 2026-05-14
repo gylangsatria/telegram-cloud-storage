@@ -155,16 +155,33 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
     await initTelegram();
 
-    // Upload to Telegram
+    // Get folder path for caption
+    let folderPath = "/";
+    if (folderId) {
+      await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT path FROM folders WHERE id = ?",
+          [folderId],
+          (err, row) => {
+            if (err) reject(err);
+            if (row) folderPath = row.path;
+            resolve();
+          },
+        );
+      });
+    }
+
+    // Upload to Telegram with folder path
     const telegramFile = await telegramStorage.uploadFile(
       file.path,
       file.originalname,
+      folderPath, // Parameter folderPath
     );
 
     // Save to database
     db.run(
       `INSERT INTO files (name, folder_id, telegram_file_id, file_size, file_type) 
-             VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)`,
       [
         file.originalname,
         folderId || null,

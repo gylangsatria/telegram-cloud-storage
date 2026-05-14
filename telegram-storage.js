@@ -85,20 +85,55 @@ class TelegramStorage {
     return this;
   }
 
-  async uploadFile(filePath, fileName) {
+  // Helper: Format file size
+  formatFileSize(bytes) {
+    if (!bytes) return "0 B";
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  }
+
+  // Helper: Generate caption dengan informasi folder
+  generateCaption(fileName, folderPath, fileSize) {
+    const timestamp = new Date().toLocaleString();
+    const folderDisplay = folderPath === "/" ? "Root" : folderPath;
+
+    return `
+===================================
+  FILE INFORMATION
+===================================
+  Location: ${folderDisplay}
+  Name:     ${fileName}
+  Size:     ${fileSize}
+  Time:     ${timestamp}
+===================================
+  Managed by Telegram Cloud Storage
+===================================
+  `.trim();
+  }
+
+  async uploadFile(filePath, fileName, folderPath = "/") {
     try {
       if (!this.client || !this.channel) {
         throw new Error("Telegram client not initialized");
       }
 
+      const stats = fs.statSync(filePath);
+      const fileSize = this.formatFileSize(stats.size);
+      const caption = this.generateCaption(fileName, folderPath, fileSize);
+
+      console.log("Uploading file:", fileName);
+      console.log("Folder path:", folderPath);
+
       const file = await this.client.sendFile(this.channel, {
         file: filePath,
-        caption: fileName,
+        caption: caption,
         forceDocument: true,
       });
 
-      const stats = fs.statSync(filePath);
       fs.unlinkSync(filePath);
+
+      console.log("File uploaded, message ID:", file.id);
 
       return {
         id: file.id,
