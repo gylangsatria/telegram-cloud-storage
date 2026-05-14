@@ -241,6 +241,15 @@
 
           const actions = row.insertCell(4);
           if (user.id !== currentUser.id) {
+            const resetBtn = document.createElement("button");
+            resetBtn.textContent = "Reset Pwd";
+            resetBtn.className = "btn";
+            resetBtn.style.padding = "5px 10px";
+            resetBtn.style.background = "#ffc107";
+            resetBtn.style.marginRight = "5px";
+            resetBtn.onclick = () => resetPassword(user.id, user.username);
+            actions.appendChild(resetBtn);
+
             const deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Delete";
             deleteBtn.className = "btn btn-danger";
@@ -248,9 +257,77 @@
             deleteBtn.onclick = () => deleteUser(user.id);
             actions.appendChild(deleteBtn);
           } else {
-            actions.textContent = "(You)";
+            const changeBtn = document.createElement("button");
+            changeBtn.textContent = "Change Pwd";
+            changeBtn.className = "btn";
+            changeBtn.style.padding = "5px 10px";
+            changeBtn.style.background = "#0088cc";
+            changeBtn.onclick = () => changeOwnPassword();
+            actions.appendChild(changeBtn);
+            actions.appendChild(document.createTextNode(" (You)"));
           }
         });
+      }
+
+      // Reset password modal
+      function resetPassword(userId, username) {
+        const newPassword = prompt(`Enter new password for user: ${username}`);
+        if (newPassword && newPassword.length >= 4) {
+          fetch(`/api/admin/reset-password/${userId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newPassword }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                alert("Password reset successfully!");
+              } else {
+                alert("Error: " + data.error);
+              }
+            })
+            .catch((error) => alert("Error: " + error.message));
+        } else if (newPassword) {
+          alert("Password must be at least 4 characters");
+        }
+      }
+
+      // Change own password
+      function changeOwnPassword() {
+        const currentPassword = prompt("Enter your current password:");
+        if (!currentPassword) return;
+
+        const newPassword = prompt("Enter new password (min 4 characters):");
+        if (!newPassword) return;
+
+        if (newPassword.length < 4) {
+          alert("Password must be at least 4 characters");
+          return;
+        }
+
+        const confirmPassword = prompt("Confirm new password:");
+        if (newPassword !== confirmPassword) {
+          alert("Passwords do not match");
+          return;
+        }
+
+        fetch("/api/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              alert("Password changed successfully! Please login again.");
+              fetch("/api/logout", { method: "POST" }).then(() => {
+                window.location.href = "/login";
+              });
+            } else {
+              alert("Error: " + data.error);
+            }
+          })
+          .catch((error) => alert("Error: " + error.message));
       }
 
       async function deleteUser(userId) {

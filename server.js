@@ -173,6 +173,112 @@ app.get("/api/users", requireAdmin, (req, res) => {
   );
 });
 
+// Change own password
+app.post("/api/change-password", requireLogin, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.session.userId;
+
+  if (!currentPassword || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "Current password and new password required" });
+  }
+
+  if (newPassword.length < 4) {
+    return res
+      .status(400)
+      .json({ error: "New password must be at least 4 characters" });
+  }
+
+  // Get user's current password
+  db.get(
+    "SELECT password FROM users WHERE id = ?",
+    [userId],
+    async (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verify current password
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      db.run(
+        "UPDATE users SET password = ? WHERE id = ?",
+        [hashedPassword, userId],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ success: true, message: "Password changed successfully" });
+        },
+      );
+    },
+  );
+});
+
+// Admin: Reset password for any user
+app.post(
+  "/api/admin/reset-password/:userId",
+  requireAdmin,
+  async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: "New password required" });
+    }
+
+    if (newPassword.length < 4) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 4 characters" });
+    }
+
+    // Check if user exists
+    db.get(
+      "SELECT id, username FROM users WHERE id = ?",
+      [userId],
+      async (err, user) => {
+        if (err || !user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        // Don't allow admin to reset own password here (use change-password instead)
+        if (userId == req.session.userId) {
+          return res
+            .status(400)
+            .json({
+              error: "Use change password endpoint for your own account",
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        db.run(
+          "UPDATE users SET password = ? WHERE id = ?",
+          [hashedPassword, userId],
+          (err) => {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+            res.json({
+              success: true,
+              message: `Password reset for user ${user.username} successfully`,
+            });
+          },
+        );
+      },
+    );
+  },
+);
+
 // Admin: Create new user
 app.post("/api/users", requireAdmin, async (req, res) => {
   const { username, password, role } = req.body;

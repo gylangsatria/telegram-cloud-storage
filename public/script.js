@@ -2,6 +2,7 @@ let currentFolderId = null;
 let currentView = "grid"; // 'grid' or 'list'
 
 // Check authentication
+// Check authentication
 async function checkAuth() {
   try {
     const response = await fetch("/api/me");
@@ -11,36 +12,49 @@ async function checkAuth() {
     }
     const user = await response.json();
 
+    // Update user info di header
+    const usernameSpan = document.getElementById("username");
+    const userRoleSpan = document.getElementById("userRole");
+    if (usernameSpan) usernameSpan.textContent = user.username;
+    if (userRoleSpan) userRoleSpan.textContent = user.role;
+
     // Add admin link if admin
     if (user.role === "admin") {
       const toolbar = document.querySelector(".toolbar-left");
-      const adminBtn = document.createElement("button");
-      adminBtn.id = "adminBtn";
-      adminBtn.className = "btn";
-      adminBtn.style.background = "#6c757d";
-      adminBtn.innerHTML = '<i class="fas fa-user-shield"></i> Admin Panel';
-      adminBtn.onclick = () => (window.location.href = "/admin.html");
-      toolbar.appendChild(adminBtn);
+      if (toolbar && !document.getElementById("adminBtn")) {
+        const adminBtn = document.createElement("button");
+        adminBtn.id = "adminBtn";
+        adminBtn.className = "btn";
+        adminBtn.style.background = "#6c757d";
+        adminBtn.innerHTML = '<i class="fas fa-user-shield"></i> Admin Panel';
+        adminBtn.onclick = () => (window.location.href = "/admin.html");
+        toolbar.appendChild(adminBtn);
+      }
     }
 
-    // Add user info to header
-    const header = document.querySelector("header h1");
-    const userInfo = document.createElement("div");
-    userInfo.style.fontSize = "14px";
-    userInfo.style.marginTop = "10px";
-    userInfo.innerHTML = `<i class="fas fa-user"></i> ${user.username} (${user.role}) | <a href="#" id="logoutLink" style="color: white;">Logout</a>`;
-    header.parentElement.appendChild(userInfo);
-
-    document
-      .getElementById("logoutLink")
-      ?.addEventListener("click", async (e) => {
+    // Logout link event
+    const logoutLink = document.getElementById("logoutLink");
+    if (logoutLink) {
+      logoutLink.addEventListener("click", async (e) => {
         e.preventDefault();
         await fetch("/api/logout", { method: "POST" });
         window.location.href = "/login";
       });
+    }
+
+    // Change password link event (optional, nanti ditambah)
+    const changePasswordLink = document.getElementById("changePasswordLink");
+    if (changePasswordLink) {
+      changePasswordLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        // TODO: implement change password modal
+        alert("Change password feature coming soon");
+      });
+    }
 
     return user;
   } catch (error) {
+    console.error("Auth error:", error);
     window.location.href = "/login";
     return false;
   }
