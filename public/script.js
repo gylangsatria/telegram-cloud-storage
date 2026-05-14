@@ -206,13 +206,51 @@ async function updateBreadcrumb() {
 
   if (!currentFolderId) {
     breadcrumbDiv.innerHTML =
-      '<a href="#" onclick="loadContents(null)">My Drive</a>';
+      '<a href="#" onclick="loadContents(null); return false;">My Drive</a>';
     return;
   }
 
-  // Simplified breadcrumb
-  breadcrumbDiv.innerHTML =
-    '<a href="#" onclick="loadContents(null)">My Drive</a> / ...';
+  // Build breadcrumb path
+  let path = [];
+  let currentId = currentFolderId;
+  let maxDepth = 10; // Prevent infinite loop
+  let depth = 0;
+
+  while (currentId && depth < maxDepth) {
+    depth++;
+    try {
+      const response = await fetch(`/api/browse?folderId=${currentId}`);
+      const data = await response.json();
+
+      // Find current folder
+      const currentFolder = data.folders.find((f) => f.id == currentId);
+      if (currentFolder) {
+        path.unshift({ id: currentId, name: currentFolder.name });
+        currentId = currentFolder.parent_id;
+      } else {
+        break;
+      }
+    } catch (error) {
+      console.error("Error building breadcrumb:", error);
+      break;
+    }
+  }
+
+  // Build HTML
+  let html =
+    '<a href="#" onclick="loadContents(null); return false;">My Drive</a>';
+
+  for (let i = 0; i < path.length; i++) {
+    html += " / ";
+    if (i === path.length - 1) {
+      // Last item - no link, just text
+      html += `<span>${escapeHtml(path[i].name)}</span>`;
+    } else {
+      html += `<a href="#" onclick="loadContents(${path[i].id}); return false;">${escapeHtml(path[i].name)}</a>`;
+    }
+  }
+
+  breadcrumbDiv.innerHTML = html;
 }
 
 // Create new folder
