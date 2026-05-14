@@ -156,6 +156,13 @@ telegram-cloud-storage/
 | DELETE | `/api/folders/:id`  | Delete folder          |
 | GET    | `/api/download/:id` | Download file          |
 
+## Access Web
+
+```bash
+1. localhost:3010
+2. Default user admin : admin | admin123
+```
+
 ## Troubleshooting
 
 ### Session expired
