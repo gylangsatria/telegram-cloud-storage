@@ -33,21 +33,32 @@ let telegramStorage = null;
 
 async function initTelegram() {
   if (!telegramStorage) {
+    // Gunakan channel ID jika ada, fallback ke username
+    const channelIdentifier =
+      process.env.STORAGE_CHANNEL_ID || process.env.STORAGE_CHANNEL;
+
+    if (!channelIdentifier) {
+      console.error(
+        "Error: STORAGE_CHANNEL_ID or STORAGE_CHANNEL must be set in .env",
+      );
+      process.exit(1);
+    }
+
+    console.log(`Using channel identifier: ${channelIdentifier}`);
+    console.log(
+      `Channel type: ${process.env.STORAGE_CHANNEL_ID ? "PRIVATE (by ID)" : "PUBLIC (by username)"}`,
+    );
+
     telegramStorage = new TelegramStorage(
       process.env.TELEGRAM_API_ID,
       process.env.TELEGRAM_API_HASH,
       process.env.TELEGRAM_SESSION || "",
-      process.env.STORAGE_CHANNEL,
+      channelIdentifier,
     );
-    await telegramStorage.init();
 
-    // Save session string for future use
-    if (!process.env.TELEGRAM_SESSION) {
-      console.log(
-        "Save this session string to .env file:",
-        telegramStorage.getSessionString(),
-      );
-    }
+    console.log("Initializing Telegram connection...");
+    await telegramStorage.init();
+    console.log("Telegram connection established!");
   }
   return telegramStorage;
 }
