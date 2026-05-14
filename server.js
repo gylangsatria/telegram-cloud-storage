@@ -252,11 +252,9 @@ app.post(
 
         // Don't allow admin to reset own password here (use change-password instead)
         if (userId == req.session.userId) {
-          return res
-            .status(400)
-            .json({
-              error: "Use change password endpoint for your own account",
-            });
+          return res.status(400).json({
+            error: "Use change password endpoint for your own account",
+          });
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -435,6 +433,7 @@ app.post(
       const { folderId } = req.body;
       const file = req.file;
       const userId = req.session.userId;
+      const username = req.session.username; // Ambil username dari session
 
       if (!file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -457,10 +456,12 @@ app.post(
         });
       }
 
+      // Upload to Telegram with username
       const telegramFile = await telegramStorage.uploadFile(
         file.path,
         file.originalname,
         folderPath,
+        username, // Kirim username
       );
 
       db.run(
