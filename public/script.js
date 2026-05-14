@@ -386,6 +386,9 @@ async function uploadFile(file) {
       const error = await response.json();
       throw new Error(error.error);
     }
+
+    // Tambah delay 3-5 detik setelah upload
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   } catch (error) {
     console.error("Upload error:", error);
     alert(`Failed to upload ${file.name}: ${error.message}`);
