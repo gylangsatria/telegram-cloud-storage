@@ -79,12 +79,9 @@ async function checkAuth() {
 
     const changePasswordLink = document.getElementById("changePasswordLink");
     if (changePasswordLink) {
-      const newChangePasswordLink = changePasswordLink.cloneNode(true);
-      changePasswordLink.parentNode.replaceChild(
-        newChangePasswordLink,
-        changePasswordLink,
-      );
-      newChangePasswordLink.addEventListener("click", (e) => {
+      const newLink = changePasswordLink.cloneNode(true);
+      changePasswordLink.parentNode.replaceChild(newLink, changePasswordLink);
+      newLink.addEventListener("click", (e) => {
         e.preventDefault();
         changePassword();
       });
