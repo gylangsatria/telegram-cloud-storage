@@ -782,6 +782,257 @@ window.addEventListener("click", (event) => {
   }
 });
 
+// Preview Functions
+let currentPreviewFile = null;
+
+async function previewFile(fileId, fileName, fileType) {
+  const modal = document.getElementById("previewModal");
+  const previewContent = document.getElementById("previewContent");
+
+  // Show modal with loading
+  modal.style.display = "block";
+  previewContent.innerHTML =
+    '<div class="preview-loading"><i class="fas fa-spinner"></i><p>Loading preview...</p></div>';
+
+  try {
+    // Get file info and URL
+    const response = await fetch(`/api/download/${fileId}`);
+    if (!response.ok) throw new Error("Failed to load file");
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    // Generate preview based on file type
+    let html = "";
+
+    // Video files
+    if (fileType && fileType.startsWith("video/")) {
+      html = `
+        <video class="preview-video" controls autoplay>
+          <source src="${url}" type="${fileType}">
+          Your browser does not support video playback.
+        </video>
+      `;
+    }
+    // Audio files
+    else if (fileType && fileType.startsWith("audio/")) {
+      html = `
+        <div class="preview-audio">
+          <audio controls style="width: 100%;">
+            <source src="${url}" type="${fileType}">
+            Your browser does not support audio playback.
+          </audio>
+          <div class="preview-file-info" style="margin-top: 20px;">
+            <i class="fas fa-music"></i>
+            <h3>${escapeHtml(fileName)}</h3>
+            <p>Audio file ready to play</p>
+          </div>
+        </div>
+      `;
+    }
+    // Image files
+    else if (fileType && fileType.startsWith("image/")) {
+      html = `<img class="preview-image" src="${url}" alt="${escapeHtml(fileName)}">`;
+    }
+    // PDF files
+    else if (fileType === "application/pdf") {
+      html = `<iframe class="preview-pdf" src="${url}" title="${escapeHtml(fileName)}"></iframe>`;
+    }
+    // Word/Excel/PowerPoint
+    else if (
+      fileType &&
+      (fileType.includes("word") ||
+        fileType.includes("document") ||
+        fileType.includes("msword"))
+    ) {
+      html = `
+        <div class="document-placeholder">
+          <i class="fas fa-file-word"></i>
+          <h4>Microsoft Word Document</h4>
+          <p>${escapeHtml(fileName)}</p>
+          <a href="${url}" download="${escapeHtml(fileName)}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download to View
+          </a>
+        </div>
+      `;
+    } else if (
+      fileType &&
+      (fileType.includes("excel") || fileType.includes("spreadsheet"))
+    ) {
+      html = `
+        <div class="document-placeholder">
+          <i class="fas fa-file-excel"></i>
+          <h4>Microsoft Excel Spreadsheet</h4>
+          <p>${escapeHtml(fileName)}</p>
+          <a href="${url}" download="${escapeHtml(fileName)}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download to View
+          </a>
+        </div>
+      `;
+    } else if (
+      fileType &&
+      (fileType.includes("powerpoint") || fileType.includes("presentation"))
+    ) {
+      html = `
+        <div class="document-placeholder">
+          <i class="fas fa-file-powerpoint"></i>
+          <h4>Microsoft PowerPoint Presentation</h4>
+          <p>${escapeHtml(fileName)}</p>
+          <a href="${url}" download="${escapeHtml(fileName)}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download to View
+          </a>
+        </div>
+      `;
+    }
+    // Text files
+    else if (
+      fileType &&
+      (fileType.includes("text/") ||
+        fileType.includes("javascript") ||
+        fileType.includes("json") ||
+        fileType.includes("html"))
+    ) {
+      const text = await blob.text();
+      html = `
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; max-height: 70vh; overflow: auto;">
+          <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 13px;">${escapeHtml(text)}</pre>
+        </div>
+      `;
+    }
+    // Default (download only)
+    else {
+      html = `
+        <div class="preview-file-info">
+          <i class="fas fa-file"></i>
+          <h3>${escapeHtml(fileName)}</h3>
+          <p>File type: ${fileType || "Unknown"}</p>
+          <p>Preview not available for this file type.</p>
+          <a href="${url}" download="${escapeHtml(fileName)}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download File
+          </a>
+        </div>
+      `;
+    }
+
+    previewContent.innerHTML = html;
+    currentPreviewFile = { url, fileName };
+  } catch (error) {
+    console.error("Preview error:", error);
+    previewContent.innerHTML = `
+      <div class="preview-file-info">
+        <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>
+        <h3>Preview Failed</h3>
+        <p>${error.message}</p>
+        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+      </div>
+    `;
+  }
+}
+
+// Close preview modal
+function closePreview() {
+  const modal = document.getElementById("previewModal");
+  if (modal) {
+    modal.style.display = "none";
+    const previewContent = document.getElementById("previewContent");
+    if (previewContent) {
+      previewContent.innerHTML =
+        '<div class="preview-loading">Loading preview...</div>';
+    }
+  }
+  if (currentPreviewFile && currentPreviewFile.url) {
+    URL.revokeObjectURL(currentPreviewFile.url);
+    currentPreviewFile = null;
+  }
+}
+
+// Add preview button to items
+function addPreviewButton() {
+  // For grid view - add preview button to file cards
+  document.querySelectorAll(".file-card, .file-item").forEach((item) => {
+    // Check if preview button already exists
+    if (item.querySelector(".preview-file")) return;
+
+    const actionsDiv = item.querySelector(".item-actions");
+    if (actionsDiv) {
+      const previewBtn = document.createElement("button");
+      previewBtn.className = "action-btn preview-file";
+      previewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+      previewBtn.title = "Preview";
+      previewBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const fileId = item.dataset.id;
+        const fileName =
+          item.querySelector(".item-name")?.textContent || "File";
+
+        // Get file type from database
+        try {
+          const response = await fetch(
+            `/api/browse?folderId=${currentFolderId}`,
+          );
+          const data = await response.json();
+          const file = data.files.find((f) => f.id == fileId);
+          if (file) {
+            previewFile(fileId, file.name, file.file_type);
+          } else {
+            previewFile(fileId, fileName, "application/octet-stream");
+          }
+        } catch (error) {
+          console.error("Error getting file info:", error);
+          previewFile(fileId, fileName, "application/octet-stream");
+        }
+      };
+
+      // Insert preview button as first button
+      actionsDiv.insertBefore(previewBtn, actionsDiv.firstChild);
+    }
+  });
+}
+
+// Override attachEventListeners to add preview buttons
+const originalAttachEventListeners = attachEventListeners;
+attachEventListeners = function () {
+  originalAttachEventListeners();
+  addPreviewButton();
+};
+
+// Preview modal close handlers
+document.addEventListener("DOMContentLoaded", () => {
+  const closePreviewBtn = document.querySelector(".close-preview");
+  if (closePreviewBtn) {
+    closePreviewBtn.addEventListener("click", closePreview);
+  }
+
+  window.addEventListener("click", (event) => {
+    const modal = document.getElementById("previewModal");
+    if (event.target === modal) {
+      closePreview();
+    }
+  });
+
+  // Escape key to close
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const modal = document.getElementById("previewModal");
+      if (modal && modal.style.display === "block") {
+        closePreview();
+      }
+    }
+  });
+});
+
+// Also add preview to list view when refreshed
+function refreshPreviewButtons() {
+  setTimeout(addPreviewButton, 100);
+}
+
+// Call refresh after each load
+const originalLoadContents = loadContents;
+loadContents = async function (folderId = null) {
+  await originalLoadContents(folderId);
+  refreshPreviewButtons();
+};
+
 // Load initial content
 checkAuth().then((user) => {
   if (user) {
