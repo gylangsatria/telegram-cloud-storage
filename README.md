@@ -193,9 +193,72 @@ ports:
 
 ## Limitations
 
-- File size: up to 2GB (Telegram limit)
-- Rate limits apply (Telegram API)
-- Public channel only (for now)
+### File Size
+
+- Maximum file size: **2GB** per file (Telegram limit)
+- For larger files, consider splitting or compressing before upload
+
+### Rate Limits (Telegram API)
+
+All requests go through a single Telegram account, so the following limits apply:
+
+| Type              | Limit              | Impact                               |
+| ----------------- | ------------------ | ------------------------------------ |
+| Messages per chat | ~1 per second      | Upload/delete operations are queued  |
+| Total requests    | ~30 per second     | Combined from all users              |
+| Flood wait        | 35 seconds or more | Temporary block when limits exceeded |
+
+### Concurrent Uploads
+
+⚠️ **Important for multi-user setup:**
+
+- Users share the same Telegram account bandwidth
+- Uploads from different users are processed **sequentially**, not simultaneously
+- If User A uploads a large file, User B must wait
+- Heavy concurrent usage may trigger rate limiting (Error 429)
+
+### Data Isolation
+
+- **Files are stored per user** (User A cannot access User B files)
+- **Metadata stored locally** in SQLite database
+- Each user has their own isolated folder structure
+
+### Storage
+
+- Telegram account storage = total available space
+- No built-in file compression
+- Metadata stored separately (database backup recommended)
+
+### Performance Considerations
+
+| Scenario                             | Expected Behavior           |
+| ------------------------------------ | --------------------------- |
+| Single user, normal usage            | ✅ Smooth                   |
+| Multi-user, light usage              | ✅ Acceptable               |
+| Multi-user, heavy concurrent uploads | ⚠️ Queuing, possible delays |
+| Mass upload (>50 files at once)      | ⚠️ Risk of rate limiting    |
+| Automated frequent uploads           | ❌ Not recommended          |
+
+### Recommendations
+
+- Avoid uploading more than **20 files per minute**
+- Add delays between multiple file uploads (built-in: 3 seconds)
+- Use **private channel** for better security
+- Backup database regularly (`data/storage.db`)
+- Monitor logs for rate limit warnings
+
+### Known Limitations (Future Improvements)
+
+- No end-to-end encryption yet
+- No file preview for all formats
+- Search functionality not available
+- No move/copy between folders
+- No trash/recycle bin
+- Public channel discovery (use private channel for privacy)
+
+---
+
+_These limitations are based on Telegram API restrictions and current implementation._
 
 ## License
 
