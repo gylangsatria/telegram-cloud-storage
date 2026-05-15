@@ -11,16 +11,6 @@
     />
   </head>
 
-  <!-- Preview Modal -->
-  <div id="previewModal" class="modal">
-    <div class="modal-content modal-preview">
-      <span class="close-preview">&times;</span>
-      <div id="previewContent" class="preview-content">
-        <div class="preview-loading">Loading preview...</div>
-      </div>
-    </div>
-  </div>
-
   <body>
     <div class="container">
       <header>
@@ -111,6 +101,64 @@
           </div>
         </div>
       </footer>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+      <div class="modal-content modal-preview">
+        <span class="close-preview">&times;</span>
+        <div id="previewContent" class="preview-content">
+          <div class="preview-loading">Loading preview...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal">
+      <div class="modal-content share-modal">
+        <span class="close-share">&times;</span>
+        <h2><i class="fas fa-share-alt"></i> Share File</h2>
+        <p id="shareFileName"><strong>Loading...</strong></p>
+
+        <div class="share-expiry">
+          <label>Link expires after:</label>
+          <select id="shareExpiry">
+            <option value="0">Never</option>
+            <option value="1">1 hour</option>
+            <option value="24">24 hours</option>
+            <option value="168">7 days</option>
+            <option value="720">30 days</option>
+          </select>
+        </div>
+
+        <button
+          id="generateShareBtn"
+          class="btn btn-primary"
+          style="width: 100%"
+        >
+          <i class="fas fa-link"></i> Generate Share Link
+        </button>
+
+        <div id="shareResult" style="display: none; margin-top: 20px">
+          <div class="share-url-container">
+            <input type="text" id="shareUrl" readonly />
+            <button id="copyShareUrlBtn" class="btn btn-copy">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+          </div>
+          <div class="share-stats">
+            <p>
+              <i class="fas fa-clock"></i> Expires:
+              <span id="shareExpires">Never</span>
+            </p>
+            <p>
+              <i class="fas fa-download"></i>
+              <span id="shareStats">0 downloads</span>
+            </p>
+          </div>
+          <button id="closeShareResultBtn" class="btn">Close</button>
+        </div>
+      </div>
     </div>
 
     <!-- New Folder Modal -->

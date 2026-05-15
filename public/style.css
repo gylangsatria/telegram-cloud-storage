@@ -911,3 +911,122 @@ header h1 {
     transform: rotate(360deg);
   }
 }
+
+/* Share Modal Styles */
+.share-modal {
+  max-width: 500px;
+}
+
+.share-url-container {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.share-url-container input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.share-url-container button {
+  padding: 10px 15px;
+  white-space: nowrap;
+}
+
+.share-stats {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.share-stats p {
+  margin: 5px 0;
+  font-size: 13px;
+}
+
+.share-expiry {
+  margin: 15px 0;
+}
+
+.share-expiry select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.share-list {
+  margin-top: 20px;
+}
+
+.share-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.share-item-info {
+  flex: 1;
+}
+
+.share-item-info .file-name {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.share-item-info .share-stats-small {
+  font-size: 12px;
+  color: #666;
+}
+
+.share-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-copy {
+  background: #28a745;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: #218838;
+}
+
+.btn-revoke {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-revoke:hover {
+  background: #c82333;
+}
+
+.share-link {
+  color: #0088cc;
+  text-decoration: none;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Share folder specific */
+.share-folder {
+  background: #6c757d;
+}
+
+.share-folder:hover {
+  background: #5a6268;
+}
+
+.share-file-item .share-file-icon i {
+  font-size: 24px;
+}

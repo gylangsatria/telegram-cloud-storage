@@ -634,6 +634,469 @@ app.get("/api/download/:id", requireLogin, async (req, res) => {
   }
 });
 
+// ============ SHARING ROUTES ============
+
+// Generate share link for a folder
+app.post("/api/share-folder/:folderId", requireLogin, async (req, res) => {
+  const folderId = req.params.folderId;
+  const userId = req.session.userId;
+  const { expiresInHours } = req.body;
+
+  // Check if folder exists and belongs to user
+  db.get(
+    "SELECT id, name FROM folders WHERE id = ? AND user_id = ?",
+    [folderId, userId],
+    async (err, folder) => {
+      if (err || !folder) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+
+      const crypto = require("crypto");
+      const shareToken = crypto.randomBytes(16).toString("hex");
+
+      let expiresAt = null;
+      if (expiresInHours && expiresInHours > 0) {
+        expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+      }
+
+      db.run(
+        `INSERT INTO shares (folder_id, user_id, share_token, expires_at, is_folder) 
+         VALUES (?, ?, ?, ?, 1)`,
+        [folderId, userId, shareToken, expiresAt],
+        function (err) {
+          if (err) {
+            console.error("Insert share error:", err.message);
+            return res.status(500).json({ error: err.message });
+          }
+
+          const shareUrl = `${req.protocol}://${req.get("host")}/share-folder/${shareToken}`;
+          res.json({
+            success: true,
+            shareUrl: shareUrl,
+            shareToken: shareToken,
+            expiresAt: expiresAt,
+            isFolder: true,
+          });
+        },
+      );
+    },
+  );
+});
+
+// Public access to shared folder
+app.get("/share-folder/:token", async (req, res) => {
+  const { token } = req.params;
+
+  db.get(
+    `SELECT s.*, f.name as folder_name, f.user_id as owner_id
+     FROM shares s 
+     JOIN folders f ON s.folder_id = f.id 
+     WHERE s.share_token = ? AND s.is_folder = 1`,
+    [token],
+    async (err, share) => {
+      if (err || !share) {
+        return res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Share Not Found</title></head>
+          <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>Share Link Not Found</h1>
+            <p>The share link may have expired or been removed.</p>
+            <a href="/">Go to Home</a>
+          </body>
+          </html>
+        `);
+      }
+
+      if (share.expires_at && new Date(share.expires_at) < new Date()) {
+        return res.status(410).send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Share Expired</title></head>
+          <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>Share Link Expired</h1>
+            <p>This share link has expired.</p>
+            <a href="/">Go to Home</a>
+          </body>
+          </html>
+        `);
+      }
+
+      // Increment download count
+      db.run(
+        "UPDATE shares SET download_count = download_count + 1 WHERE share_token = ?",
+        [token],
+      );
+
+      // Get all files in this folder
+      db.all(
+        `SELECT f.id, f.name, f.telegram_file_id, f.file_size, f.file_type 
+         FROM files f
+         WHERE f.folder_id = ?`,
+        [share.folder_id],
+        async (err, files) => {
+          if (err) {
+            return res.status(500).send("Error loading files");
+          }
+
+          // Generate HTML page
+          let filesHtml = "";
+          for (const file of files) {
+            const size = formatFileSize(file.file_size);
+            const icon = getFileIcon(file.file_type);
+            filesHtml += `
+              <div class="share-file-item">
+                <div class="share-file-icon"><i class="${icon}"></i></div>
+                <div class="share-file-name">${escapeHtml(file.name)}</div>
+                <div class="share-file-size">${size}</div>
+                <div class="share-file-download">
+                  <a href="/share-file/${token}/${file.id}" class="share-download-btn">Download</a>
+                </div>
+              </div>
+            `;
+          }
+
+          const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Shared: ${escapeHtml(share.folder_name)}</title>
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+              <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+                .share-container { max-width: 800px; margin: 50px auto; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
+                .share-header { background: linear-gradient(135deg, #0088cc, #005f8c); color: white; padding: 30px; text-align: center; }
+                .share-header h1 { margin-bottom: 10px; }
+                .share-files { padding: 20px; }
+                .share-file-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #e0e0e0; }
+                .share-file-item:hover { background: #f8f9fa; }
+                .share-file-icon { width: 40px; font-size: 24px; color: #666; }
+                .share-file-name { flex: 2; font-size: 14px; }
+                .share-file-size { width: 100px; font-size: 12px; color: #666; }
+                .share-file-download { width: 100px; text-align: right; }
+                .share-download-btn { background: #0088cc; color: white; padding: 6px 12px; border-radius: 5px; text-decoration: none; font-size: 12px; }
+                .share-download-btn:hover { background: #005f8c; }
+                .empty-folder { text-align: center; padding: 60px; color: #999; }
+                .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; border-top: 1px solid #e0e0e0; }
+              </style>
+            </head>
+            <body>
+              <div class="share-container">
+                <div class="share-header">
+                  <h1><i class="fab fa-telegram"></i> Shared Folder</h1>
+                  <h2>${escapeHtml(share.folder_name)}</h2>
+                  <p>Shared via Telegram Cloud Storage</p>
+                </div>
+                <div class="share-files">
+                  ${files.length === 0 ? '<div class="empty-folder"><i class="fas fa-folder-open"></i><p>This folder is empty</p></div>' : filesHtml}
+                </div>
+                <div class="footer">
+                  <p>Powered by Telegram Cloud Storage</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `;
+          res.send(html);
+        },
+      );
+    },
+  );
+});
+
+// Simple escape for server-side (no document)
+function escapeHtml(text) {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "0 B";
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+}
+
+function getFileIcon(mimeType) {
+  if (!mimeType) return "fas fa-file";
+  if (mimeType.startsWith("image/")) return "fas fa-image";
+  if (mimeType.startsWith("video/")) return "fas fa-video";
+  if (mimeType.startsWith("audio/")) return "fas fa-music";
+  if (mimeType.includes("pdf")) return "fas fa-file-pdf";
+  if (mimeType.includes("word")) return "fas fa-file-word";
+  if (mimeType.includes("excel")) return "fas fa-file-excel";
+  if (mimeType.includes("zip")) return "fas fa-file-archive";
+  return "fas fa-file";
+}
+
+// Download file from shared folder
+app.get("/share-file/:token/:fileId", async (req, res) => {
+  const { token, fileId } = req.params;
+
+  // Verify share token and get file
+  db.get(
+    `SELECT s.*, f.telegram_file_id, f.name as file_name, f.user_id as owner_id
+     FROM shares s 
+     JOIN folders fld ON s.folder_id = fld.id
+     JOIN files f ON f.folder_id = fld.id OR f.folder_id IN (
+       WITH RECURSIVE folder_tree AS (
+         SELECT id FROM folders WHERE id = fld.id
+         UNION ALL
+         SELECT f.id FROM folders f
+         INNER JOIN folder_tree ft ON f.parent_id = ft.id
+       )
+       SELECT id FROM folder_tree
+     )
+     WHERE s.share_token = ? AND f.id = ? AND s.is_folder = 1`,
+    [token, fileId],
+    async (err, share) => {
+      if (err || !share) {
+        return res.status(404).send("File not found");
+      }
+
+      if (share.expires_at && new Date(share.expires_at) < new Date()) {
+        return res.status(410).send("Share link expired");
+      }
+
+      await initTelegram();
+
+      const tempPath = path.join(
+        __dirname,
+        "uploads",
+        `share_${Date.now()}_${share.file_name}`,
+      );
+
+      try {
+        await telegramStorage.downloadFile(
+          parseInt(share.telegram_file_id),
+          tempPath,
+        );
+
+        res.download(tempPath, share.file_name, (err) => {
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+        });
+      } catch (downloadErr) {
+        console.error("Download error:", downloadErr);
+        res.status(500).send("Error downloading file");
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      }
+    },
+  );
+});
+
+// Generate share link for a file
+app.post("/api/share/:fileId", requireLogin, async (req, res) => {
+  const fileId = req.params.fileId;
+  const userId = req.session.userId;
+  const { expiresInHours } = req.body; // Optional: expiration in hours
+
+  // Check if file exists and belongs to user
+  db.get(
+    "SELECT id, name FROM files WHERE id = ? AND user_id = ?",
+    [fileId, userId],
+    async (err, file) => {
+      if (err || !file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      // Generate unique token
+      const crypto = require("crypto");
+      const shareToken = crypto.randomBytes(16).toString("hex");
+
+      // Calculate expiration date (optional)
+      let expiresAt = null;
+      if (expiresInHours && expiresInHours > 0) {
+        expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+      }
+
+      // Save share record
+      db.run(
+        "INSERT INTO shares (file_id, user_id, share_token, expires_at) VALUES (?, ?, ?, ?)",
+        [fileId, userId, shareToken, expiresAt],
+        function (err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+
+          const shareUrl = `${req.protocol}://${req.get("host")}/share/${shareToken}`;
+          res.json({
+            success: true,
+            shareUrl: shareUrl,
+            shareToken: shareToken,
+            expiresAt: expiresAt,
+          });
+        },
+      );
+    },
+  );
+});
+
+// Get share info (for the owner)
+app.get("/api/share/info/:token", requireLogin, async (req, res) => {
+  const { token } = req.params;
+  const userId = req.session.userId;
+
+  db.get(
+    `SELECT s.*, f.name as file_name, f.file_size, f.file_type 
+     FROM shares s 
+     JOIN files f ON s.file_id = f.id 
+     WHERE s.share_token = ? AND s.user_id = ?`,
+    [token, userId],
+    (err, share) => {
+      if (err || !share) {
+        return res.status(404).json({ error: "Share not found" });
+      }
+      res.json(share);
+    },
+  );
+});
+
+// List all shares for current user
+app.get("/api/shares", requireLogin, (req, res) => {
+  const userId = req.session.userId;
+
+  db.all(
+    `SELECT s.*, f.name as file_name, f.file_size, f.file_type 
+     FROM shares s 
+     JOIN files f ON s.file_id = f.id 
+     WHERE s.user_id = ? 
+     ORDER BY s.created_at DESC`,
+    [userId],
+    (err, shares) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(shares);
+    },
+  );
+});
+
+// Delete/revoke share link
+app.delete("/api/share/:token", requireLogin, async (req, res) => {
+  const { token } = req.params;
+  const userId = req.session.userId;
+
+  db.run(
+    "DELETE FROM shares WHERE share_token = ? AND user_id = ?",
+    [token, userId],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: "Share not found" });
+      }
+      res.json({ success: true, message: "Share link revoked" });
+    },
+  );
+});
+
+// Public access to shared file (no login required)
+app.get("/share/:token", async (req, res) => {
+  const { token } = req.params;
+
+  db.get(
+    `SELECT s.*, f.name as file_name, f.telegram_file_id, f.file_type, f.file_size, f.user_id as owner_id
+     FROM shares s 
+     JOIN files f ON s.file_id = f.id 
+     WHERE s.share_token = ?`,
+    [token],
+    async (err, share) => {
+      if (err || !share) {
+        return res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Share Not Found</title></head>
+          <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>🔗 Share Link Not Found</h1>
+            <p>The share link may have expired or been removed.</p>
+            <a href="/">Go to Home</a>
+          </body>
+          </html>
+        `);
+      }
+
+      // Check expiration
+      if (share.expires_at && new Date(share.expires_at) < new Date()) {
+        return res.status(410).send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Share Expired</title></head>
+          <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>⏰ Share Link Expired</h1>
+            <p>This share link has expired.</p>
+            <a href="/">Go to Home</a>
+          </body>
+          </html>
+        `);
+      }
+
+      // Increment download count
+      db.run(
+        "UPDATE shares SET download_count = download_count + 1 WHERE share_token = ?",
+        [token],
+      );
+
+      // Get file from Telegram
+      await initTelegram();
+
+      // Get owner's channel
+      db.get(
+        "SELECT telegram_file_id FROM files WHERE id = ?",
+        [share.file_id],
+        async (err, file) => {
+          if (err || !file) {
+            return res.status(404).send("File not found");
+          }
+
+          const tempPath = path.join(
+            __dirname,
+            "uploads",
+            `share_${Date.now()}_${share.file_name}`,
+          );
+
+          try {
+            // We need to get the owner's channel info
+            // This requires storing channel per user or using a shared channel
+            // For now, we'll use the main channel
+            await telegramStorage.downloadFile(
+              parseInt(file.telegram_file_id),
+              tempPath,
+            );
+
+            res.download(tempPath, share.file_name, (err) => {
+              if (fs.existsSync(tempPath)) {
+                fs.unlinkSync(tempPath);
+              }
+              if (err) {
+                console.error("Download error:", err);
+              }
+            });
+          } catch (downloadErr) {
+            console.error("Download error:", downloadErr);
+            res.status(500).send("Error downloading file");
+            if (fs.existsSync(tempPath)) {
+              fs.unlinkSync(tempPath);
+            }
+          }
+        },
+      );
+    },
+  );
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log("Initialize Telegram connection...");
