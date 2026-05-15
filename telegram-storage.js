@@ -94,7 +94,7 @@ class TelegramStorage {
   }
 
   // Helper: Generate caption dengan informasi folder
-  generateCaption(fileName, folderPath, fileSize) {
+  generateCaption(fileName, folderPath, fileSize, username = "Unknown") {
     const timestamp = new Date().toLocaleString();
     const folderDisplay = folderPath === "/" ? "Root" : folderPath;
 
@@ -102,17 +102,18 @@ class TelegramStorage {
 ===================================
   FILE INFORMATION
 ===================================
+  Uploaded by: ${username}
   Location: ${folderDisplay}
-  Name:     ${fileName}
-  Size:     ${fileSize}
-  Time:     ${timestamp}
+  Name: ${fileName}
+  Size: ${fileSize}
+  Time: ${timestamp}
 ===================================
   Managed by Telegram Cloud Storage
 ===================================
   `.trim();
   }
 
-  async uploadFile(filePath, fileName, folderPath = "/") {
+  async uploadFile(filePath, fileName, folderPath = "/", username = "Unknown") {
     try {
       if (!this.client || !this.channel) {
         throw new Error("Telegram client not initialized");
@@ -120,9 +121,15 @@ class TelegramStorage {
 
       const stats = fs.statSync(filePath);
       const fileSize = this.formatFileSize(stats.size);
-      const caption = this.generateCaption(fileName, folderPath, fileSize);
+      const caption = this.generateCaption(
+        fileName,
+        folderPath,
+        fileSize,
+        username,
+      );
 
       console.log("Uploading file:", fileName);
+      console.log("Uploaded by:", username);
       console.log("Folder path:", folderPath);
 
       const file = await this.client.sendFile(this.channel, {

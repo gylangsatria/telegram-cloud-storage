@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Telegram Cloud Storage</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #0088cc, #005f8c);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .login-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        width: 400px;
+        max-width: 90%;
+        padding: 40px;
+      }
+
+      .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .login-header i {
+        font-size: 48px;
+        color: #0088cc;
+        margin-bottom: 10px;
+      }
+
+      .login-header h1 {
+        font-size: 24px;
+        color: #333;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #666;
+        font-size: 14px;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #0088cc;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        background: #0088cc;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      button:hover {
+        background: #005f8c;
+      }
+
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+      }
+
+      .info {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12px;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-header">
+        <i class="fab fa-telegram"></i>
+        <h1>Telegram Cloud Storage</h1>
+      </div>
+
+      <div class="error" id="errorMsg"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="Enter username"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="Enter password"
+            required
+          />
+        </div>
+        <button type="submit">Login</button>
+      </form>
+
+      <div class="info">Default admin: admin / admin123</div>
+    </div>
+
+    <script>
+      const loginForm = document.getElementById("loginForm");
+      const errorMsg = document.getElementById("errorMsg");
+
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        errorMsg.style.display = "none";
+
+        try {
+          const response = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            window.location.href = "/";
+          } else {
+            errorMsg.textContent = data.error || "Login failed";
+            errorMsg.style.display = "block";
+          }
+        } catch (error) {
+          errorMsg.textContent = "Network error";
+          errorMsg.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>
