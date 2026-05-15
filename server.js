@@ -67,6 +67,23 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// Get folder by ID for breadcrumb
+app.get("/api/folder/:id", requireLogin, (req, res) => {
+  const folderId = req.params.id;
+  const userId = req.session.userId;
+
+  db.get(
+    "SELECT id, name, parent_id, path FROM folders WHERE id = ? AND user_id = ?",
+    [folderId, userId],
+    (err, folder) => {
+      if (err || !folder) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+      res.json(folder);
+    },
+  );
+});
+
 // Initialize Telegram storage
 let telegramStorage = null;
 

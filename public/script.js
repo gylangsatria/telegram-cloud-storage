@@ -424,29 +424,24 @@ async function updateBreadcrumb() {
 
   let path = [];
   let currentId = currentFolderId;
-  let maxDepth = 10;
-  let depth = 0;
 
-  while (currentId && depth < maxDepth) {
-    depth++;
+  while (currentId) {
     try {
-      const response = await fetch(`/api/browse?folderId=${currentId}`);
-      const data = await response.json();
-      const currentFolder = data.folders.find((f) => f.id == currentId);
-      if (currentFolder) {
-        path.unshift({ id: currentId, name: currentFolder.name });
-        currentId = currentFolder.parent_id;
-      } else {
-        break;
-      }
+      const response = await fetch(`/api/folder/${currentId}`);
+      if (!response.ok) break;
+
+      const folder = await response.json();
+      path.unshift({ id: folder.id, name: folder.name });
+      currentId = folder.parent_id;
     } catch (error) {
-      console.error("Error building breadcrumb:", error);
+      console.error("Error:", error);
       break;
     }
   }
 
   let html =
     '<a href="#" onclick="loadContents(null); return false;">My Drive</a>';
+
   for (let i = 0; i < path.length; i++) {
     html += " / ";
     if (i === path.length - 1) {
@@ -455,6 +450,7 @@ async function updateBreadcrumb() {
       html += `<a href="#" onclick="loadContents(${path[i].id}); return false;">${escapeHtml(path[i].name)}</a>`;
     }
   }
+
   breadcrumbDiv.innerHTML = html;
 }
 
