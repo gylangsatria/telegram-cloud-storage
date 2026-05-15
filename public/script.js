@@ -531,6 +531,113 @@ async function uploadFile(file) {
   }
 }
 
+// Change password function
+async function changePassword() {
+  const currentPassword = prompt("Enter your current password:");
+  if (!currentPassword) return;
+
+  const newPassword = prompt("Enter new password (min 4 characters):");
+  if (!newPassword) return;
+
+  if (newPassword.length < 4) {
+    alert("Password must be at least 4 characters");
+    return;
+  }
+
+  const confirmPassword = prompt("Confirm new password:");
+  if (newPassword !== confirmPassword) {
+    alert("Passwords do not match");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("✓ Password changed successfully! Please login again.");
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    } else {
+      alert("✗ Error: " + (data.error || "Failed to change password"));
+    }
+  } catch (error) {
+    console.error("Change password error:", error);
+    alert("✗ Error: " + error.message);
+  }
+}
+
+// Update checkAuth function to add change password event
+async function checkAuth() {
+  try {
+    const response = await fetch("/api/me");
+    if (!response.ok) {
+      window.location.href = "/login";
+      return false;
+    }
+    const user = await response.json();
+
+    // Update user info di header
+    const usernameSpan = document.getElementById("username");
+    const userRoleSpan = document.getElementById("userRole");
+    if (usernameSpan) usernameSpan.textContent = user.username;
+    if (userRoleSpan) userRoleSpan.textContent = user.role;
+
+    // Add admin link if admin
+    if (user.role === "admin") {
+      const toolbar = document.querySelector(".toolbar-left");
+      if (toolbar && !document.getElementById("adminBtn")) {
+        const adminBtn = document.createElement("button");
+        adminBtn.id = "adminBtn";
+        adminBtn.className = "btn";
+        adminBtn.style.background = "#6c757d";
+        adminBtn.innerHTML = '<i class="fas fa-user-shield"></i> Admin Panel';
+        adminBtn.onclick = () => (window.location.href = "/admin.html");
+        toolbar.appendChild(adminBtn);
+      }
+    }
+
+    // Logout link event
+    const logoutLink = document.getElementById("logoutLink");
+    if (logoutLink) {
+      // Remove existing listener to avoid duplicate
+      const newLogoutLink = logoutLink.cloneNode(true);
+      logoutLink.parentNode.replaceChild(newLogoutLink, logoutLink);
+      newLogoutLink.addEventListener("click", async (e) => {
+        e.preventDefault();
+        await fetch("/api/logout", { method: "POST" });
+        window.location.href = "/login";
+      });
+    }
+
+    // Change password link event (FIXED)
+    const changePasswordLink = document.getElementById("changePasswordLink");
+    if (changePasswordLink) {
+      // Remove existing listener to avoid duplicate
+      const newChangePasswordLink = changePasswordLink.cloneNode(true);
+      changePasswordLink.parentNode.replaceChild(
+        newChangePasswordLink,
+        changePasswordLink,
+      );
+      newChangePasswordLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        changePassword();
+      });
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Auth error:", error);
+    window.location.href = "/login";
+    return false;
+  }
+}
+
 // Delete functions
 async function deleteFolder(folderId) {
   try {
