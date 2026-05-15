@@ -19,7 +19,15 @@ Google Drive-like storage using Telegram as backend. Now supports **PUBLIC** and
 - File management UI like Google Drive
 - Docker support
 - Session persistence
-- **Public & Private channel support** (NEW)
+- Public & Private channel support
+- File preview (video, audio, image, PDF, text)
+- Share file with public link (with expiry)
+- Share folder with public link (with expiry)
+- My Shares panel to manage shared links
+- Progress bar for loading and upload
+- Responsive mobile design
+- Change password
+- Admin panel for user management
 
 ## Quick Start
 
