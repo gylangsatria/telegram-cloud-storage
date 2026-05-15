@@ -753,3 +753,33 @@ header h1 {
     margin-top: 2px !important;
   }
 }
+
+/* Progress Bar */
+.progress-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(0, 136, 204, 0.1);
+  z-index: 9999;
+  display: none;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #0088cc, #00aaff, #0088cc);
+  background-size: 200% 100%;
+  animation: shimmer 1s infinite;
+  transition: width 0.3s ease;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
