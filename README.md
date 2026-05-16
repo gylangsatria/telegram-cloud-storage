@@ -108,30 +108,69 @@ http://localhost:3010
 - Use **PRIVATE channel** for better security
 - **Change default admin password** after first login
 
-## TODO: Private Channel Support
+## TODO / Improvement Roadmap
 
-Planned improvements for better security:
+### Security (High Priority)
 
-### Short Term
+- [ ] Move session secret to `.env` instead of hardcoding
+- [ ] Add `helmet` middleware for HTTP security headers
+- [ ] Add rate limiting to prevent brute force attacks
+- [ ] Add CSRF protection for session-based endpoints
+- [ ] Set `secure: true` on session cookie when behind HTTPS
+- [ ] Add input validation and sanitization library (e.g. Joi, Zod)
+- [ ] Fix loose comparison (`==`) usages to strict comparison (`===`)
 
-- [Done] Add support for private channels
-- [Done] Store channel ID instead of username
-- [ ] Auto-create private channel option
-- [ ] Invite link management
+### Error Handling & Code Quality
 
-### Long Term
+- [ ] Wrap all async route handlers with try-catch to prevent unhandled rejections
+- [ ] Refactor mixed callback/async patterns in route handlers
+- [ ] Remove duplicated functions (`escapeHtml`, `formatFileSize`, `getFileIcon`) shared between server and client
+- [ ] Extract magic numbers (bcrypt salt rounds, max file size) into constants
+- [ ] Fix root folder creation bug where `this.lastID` references user ID instead of folder ID
+- [ ] Add proper HTTP error handling middleware
 
-- [ ] End-to-end encryption for files
-- [ ] Password-protected shares
-- [ ] File expiration dates
-- [ ] Access logs
+### Performance
 
-### How to Migrate to Private Channel (Future)
+- [ ] Stream file downloads directly from Telegram without saving to temp directory
+- [ ] Add pagination to `/api/browse` for folders with many files
+- [ ] Optimize breadcrumb to avoid N+1 database queries per folder level
+- [ ] Add file caching for frequently downloaded files
+- [ ] Migrate from SQLite to PostgreSQL for better concurrency
 
-1. Create private channel in Telegram
-2. Get channel ID (numeric)
-3. Update `.env` with channel ID
-4. Application will use private channel
+### Features
+
+- [ ] Add file and folder search
+- [ ] Add rename file/folder functionality
+- [ ] Add drag-and-drop upload support
+- [ ] Add sort and filter options (by name, date, size)
+- [ ] Add move/cut-paste files between folders
+- [ ] Add recycle bin / trash with restore capability
+- [ ] Add file versioning on duplicate filename upload
+- [ ] Add activity log / audit trail
+- [ ] Add multi-file download as ZIP archive
+- [ ] Add dark mode support
+- [ ] Add end-to-end encryption for files
+- [ ] Add password-protected share links
+- [ ] Add share link management (edit expiry, revoke)
+
+### Frontend
+
+- [ ] Replace `document.execCommand('copy')` with `navigator.clipboard.writeText()`
+- [ ] Refactor modal event handling to avoid fragile `cloneNode` pattern
+- [ ] Replace `alert()` and `confirm()` with custom modal dialogs
+- [ ] Replace simulated progress bar with real upload progress tracking
+- [ ] Add loading skeleton instead of plain text
+- [ ] Add build system (Vite / webpack) for bundling and minification
+- [ ] Move inline styles in `admin.html` to external stylesheet
+
+### Infrastructure
+
+- [ ] Add unit tests and integration tests
+- [ ] Add health check endpoint (`/health`)
+- [ ] Add structured logging (winston / pino)
+- [ ] Add error tracking (Sentry)
+- [ ] Add GitHub Actions CI/CD pipeline
+- [ ] Add graceful shutdown handler (SIGTERM / SIGINT)
 
 ### Project Structure
 
